@@ -45,18 +45,18 @@ fn main() -> Result<(), DynError>{
     let mut pid_left = PIDController::new();
     let mut pid_right = PIDController::new();
     
-    pid_left.set_proportional_gain(2.0); // 制御器の比例ゲインを設定する
-    pid_right.set_proportional_gain(2.0); // 制御器の比例ゲインを設定する
-    
-    let logger = Logger::new("dd_control");
+    pid_left.set_proportional_gain(16.0); // 制御器の比例ゲインを設定する
+    pid_right.set_proportional_gain(16.0); // 制御器の比例ゲインを設定する
 
     let mut selelctor = ctx.create_selector()?;
 
     selelctor.add_subscriber(
         subscriber, 
         Box::new(move |msg| {
-            let left_motor_rpm = md::receive_status(&handle, 0x200, 1).speed;
-            let right_motor_rpm = md::receive_status(&handle, 0x200, 2).speed;
+            let logger = Logger::new("dd_control");
+
+            let left_motor_rpm = md::receive_status(&handle, 0x200, 1).speed / 19;
+            let right_motor_rpm = md::receive_status(&handle, 0x200, 2).speed / 19;
 
             let y = msg.linear.y;
             let r = msg.angular.z;
@@ -72,6 +72,9 @@ fn main() -> Result<(), DynError>{
             
             let left_next = pid_left.calc(left_motor_rpm as f64);
             let right_next = pid_right.calc(right_motor_rpm as f64);
+
+            pr_info!(logger, "左 目標の回転数: {}, 現在の回転数: {}, 入力する電流値: {}", left_target_rpm, left_motor_rpm, left_next);
+            pr_info!(logger, "右 目標の回転数: {}, 現在の回転数: {}, 入力する電流値: {}", right_target_rpm, right_motor_rpm, right_next);
 
             md::send_current(&handle, 0x200, 1, left_next as i16);
             md::send_current(&handle, 0x200, 2, right_next as i16);
